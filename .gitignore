@@ -1,0 +1,7 @@
+#
+*.old
+*.txt
+nogit*/
+
+# directories starting with triple underscore ignored
+/___*/
