@@ -8,9 +8,11 @@
  *
  * Power management on feather: https://learn.adafruit.com/adafruit-feather-m0-adalogger/power-management
  *
+ * Radio Chip info: https://www.semtech.com/products/wireless-rf/lora-transceivers/sx1276#download-resources
  * LoRa Radio info: https://learn.adafruit.com/adafruit-feather-m0-radio-with-lora-radio-module/using-the-rfm-9x-radio
  * RF95 header file: http://www.airspayce.com/mikem/arduino/RadioHead/RH__RF95_8h_source.html
  * Defauts:  after init are 434.0MHz, 13dBm, Bw = 125 kHz, Cr = 4/5, Sf = 128chips/symbol (7), CRC on
+ * More info on LoRa: https://www.thethingsnetwork.org/forum/t/big-esp32-sx127x-topic-part-2/11973
  *
  * Spreading factor info. Heltec uses the number 11. For Dx info, See line 594 in above RF95 header link.
  #define RH_RF95_SPREADING_FACTOR_64CPS                0x60
@@ -27,7 +29,7 @@
  * And GPS Flora / FeatherWing example: GPS_HardwareSerial_Parsing
  */
 
-#define myVERSION "1.01"
+#define myVERSION "1.02"
 
 // define board target hardware macro (uncomment only one)
 // Board: "adafruit feather M0" LoRa Board
@@ -92,20 +94,36 @@ void setup() {
   pinMode(RFM95_RST, OUTPUT);
   digitalWrite(RFM95_RST, HIGH);
 
+
+  ledCode(2); // blink out info code
+
  // Serial is our command menu port
-  Serial.begin(230400);
-  while (!Serial) {
-    delay(1);
-  }
-  delay(2000);
+  Serial.begin(115200);
+
+  // test our double to string converter
+  char testBuff[16];
+  double testd = 1.0001;
+  Serial.print("1.0001 test: "); Serial.println(dtostrf(testd, 5,5, testBuff));
+  testd = 1.002;
+  Serial.print("1.002 test: "); Serial.println(dtostrf(testd, 5,5, testBuff));
+  testd = 1.03;
+  Serial.print("1.03 test: "); Serial.println(dtostrf(testd, 5,5, testBuff));
+  testd = 1.4012;
+  Serial.print("1.4012 test: "); Serial.println(dtostrf(testd, 4,4, testBuff));
+
+  delay(1000);
   // now setup GPS serial port 
   // BN-180 GPS is 9600
 
   //These lines configure the GPS Module
   if( !GPS.begin(9600) )
+  {
     Serial.println("GPS Object begin() Failed");
-  else
+    ledCode(5); // blink out info code
+  }else
+  {
     Serial.println("GPS Object init OK");
+  }
   // These commands do not seem to work on BN-180 device
   //GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA); //Sets output to only RMC and GGA sentences
   //GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); //Sets the output to 1/second.
@@ -122,14 +140,16 @@ void setup() {
   while (!LoRadio.init()) {
     Serial.println("LoRa radio init failed");
   //  Serial.println("Uncomment '#define SERIAL_DEBUG' in RH_RF95.cpp for detailed debug info");
-    while (1);
+    while (1)
+      ledCode(3); // blink out error code
   }
   Serial.println("LoRa radio init OK!");
  
   // Defaults after init are 434.0MHz, modulation GFSK_Rb250Fd250, +13dbM
   if (!LoRadio.setFrequency(RF95_FREQ)) {
     Serial.println("setFrequency failed");
-    while (1);
+    while (1)
+      ledCode(4); // blink out error code
   }
   Serial.print("Set Freq to: "); Serial.println(RF95_FREQ);
   // Defaults after init are 434.0MHz, 13dBm, Bw = 125 kHz, Cr = 4/5, Sf = 128chips/symbol (7), CRC on
@@ -144,7 +164,8 @@ void setup() {
   LoRadio.printRegisters(); // only dumps regs: 0 to 0x27
   Serial.println("--- LoRa Radio Registers ---");
 
-  delay(5000);
+  ledCode(2); // blink out info code
+  delay(2000);
 }
 
 // -----------------------------------------------
@@ -177,8 +198,8 @@ void loop() {
 char* dtostrf(double df, int minln, int maxdig, char* in_buff)
 {
   char tp_buff[16];
-  if( maxdig > 6 )
-    maxdig = 6;
+  if( maxdig > 8 )
+    maxdig = 8;
   in_buff[0] = 0;
   // convert integer part
   int whole = (int) df;
@@ -190,6 +211,13 @@ char* dtostrf(double df, int minln, int maxdig, char* in_buff)
     df *= -1.0;
   long frac = (long) (df * pow(10.0,(double)maxdig));
   ltoa(frac, tp_buff, 10);
+  // pad with 0's to left
+  int zp = maxdig - strlen(tp_buff);
+  while(zp > 0)
+  {
+    strcat(in_buff,"0");
+    zp--;
+  }
   strcat(in_buff, tp_buff);
   return in_buff;
 }
@@ -288,7 +316,7 @@ void menuCommand()
  * $GNGLL,5554.47155,N,08952.82016,W,010647.00,A,A*73
  *  See section 31.2.5
  *
- *  LoRa packet format:
+ *  Our LoRa packet format:
  *  $,<GPS Fix 0:1>,<Lat Deg>,<Long Deg>,<Vector speed>,<Vector angle>,<Altidude>,<Saat Count>,<V Battery>,<packet count>
  ********************************************************************************** */
 void getGPS(char* gpsPacket_)
@@ -417,6 +445,8 @@ void getGPS(char* gpsPacket_)
 
 // -----------------------------------------------------------------------
 // Send a packet of bytes over the LoRa radio
+// txPacket is null terminated string, null is not transmotted.
+//
 // -----------------------------------------------------------------------
 void txLoRa(char* txPacket) {
   static unsigned long lastTime = 0;
@@ -447,13 +477,15 @@ void txLoRa(char* txPacket) {
   }
 }
 
-#define LORA_RX_WAIT  (20)    // number of 20 mSec intervals to wait for Rx data.
+#define LORA_RX_WAIT  (20)    // number of 10 mSec intervals to wait for Rx data.
 // --------------------------------------------------------------------
 // Receive data from the LoRa radio
+// This is cooperative multi-task.
+// Needs to be called repeatedly while waiting for response.
 // --------------------------------------------------------------------
 void rxLoRa()
 {
-  static uint8_t tm_retries = LORA_RX_WAIT;    // number of 20 mSec intervals to wait for Rx data.
+  static uint8_t tm_retries = LORA_RX_WAIT;    // number of 10 mSec intervals to wait for Rx data.
   static unsigned long lastTime = 0;
   const long interval = 10;
   unsigned long now = millis();
@@ -503,11 +535,14 @@ void rxLoRa()
   }
   if( loRaState == 0 )
   {
-    // Tx state, set timeout retries.
+    // Tx state, reset RX timeout retries.
     tm_retries = LORA_RX_WAIT;
   }
 }
 
+
+#define LED_BLINK_FAST  (100)
+#define LED_BLINK_      (500)
 // --------------------------------------------------------------------
 // led blink control
 //
@@ -516,7 +551,7 @@ void rxLoRa()
 void ledControl() {
 
   static unsigned long lastTime = 0;
-  static unsigned long interval = 100;
+  static unsigned long interval = LED_BLINK_FAST;
   static int state = 0;
 
   unsigned long tm_now = millis();
@@ -527,22 +562,36 @@ void ledControl() {
     state++;
     lastTime = tm_now;
     digitalWrite(LED_STATUS, HIGH);
-    interval = 100;
+    interval = LED_BLINK_FAST;
   }else if ( elapsed >= interval && (state == 1 || state == 3)) {
     state++;
     lastTime = tm_now;
     digitalWrite(LED_STATUS, LOW);
     if( state > 3 && ledMode == 1)
     {
-      interval = 500;
+      // end of heartbeat 2 blinks, so off for longer time.
+      interval = LED_BLINK_;
     }else{
-      interval = 100;
+      interval = LED_BLINK_FAST;
     }
     state &= 0x03;  // ensure 4 states
   }
-
 }
 
+// blink out code, then pause
+void ledCode(int eCode)
+{
+  digitalWrite(LED_STATUS, LOW);
+  delay(500);
+  for(int i = 0; i< eCode; i++)
+  {
+    digitalWrite(LED_STATUS, HIGH);
+    delay(250);
+    digitalWrite(LED_STATUS, LOW);
+    delay(250);
+  }
+  delay(500);
+}
 // -------------------------------------------------------------------
 //  End of file
 // -------------------------------------------------------------------
