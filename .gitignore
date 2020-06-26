@@ -1,7 +1,10 @@
-#
+# Mark giebler.  Arduino .gitignore
 *.old
 *.txt
+# older files with version number suffix
+*.v[0-9]*
+# directories starting with prefix:
 nogit*/
 
-# directories starting with triple underscore ignored
+# directories starting with triple underscore prefix ignored
 /___*/
