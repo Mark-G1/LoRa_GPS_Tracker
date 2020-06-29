@@ -32,7 +32,7 @@
  * 2020-06-27	add debug enable and menu enable if USB connected during setup.
  */
 
-#define myVERSION "1.05"
+#define myVERSION "1.06"
 
 // how often to get GPS data and send via LoRa
 #define GPS_UPDATE_RATE (5000)
@@ -52,6 +52,14 @@
 
 // set to 1 to dump Lora radio registers at start up.
 #define ENABLE_LORA_INFO    0
+
+// ------------------------------------------
+//  Battery voltage thresholds
+// LoRa transmit OK down to 3.55v  but battery does strange thing: goes down to 3.55 then after a minut start rising to 3.65 where Tx stops.
+#define LOW_vBATT	(3.57)	// vbat below this disables tracker (if no USB connection)
+#define OK_vBATT	(3.72)	// vbatt must go above this to re-enable.
+
+// ------------------------------------------
 
 // define board target hardware macro (uncomment only one)
 // Board: "adafruit feather M0" LoRa Board
@@ -238,7 +246,7 @@ void setup() {
 }
 
 int loops = 0;
-volatile int trackerState = 0;	// 0 waiting for fix, 1 = fix and can sleep, 2 = fix and wake time
+volatile int trackerState = 0;	// 0 waiting for fix, 1 = fix and can sleep, 2 = fix and wake time, 3 = vbatt under volt
 volatile uint32_t sleepTime = 0;
 // -------------------------------------------------------------------
 // the loop function runs over and over again forever
@@ -248,12 +256,21 @@ void loop() {
 	#if (ENABLE_DEBUG_INFO == 1)
 //  Serial.println("in loop()");
 	#endif
-	int fix, slept;
+	int fix=0, slept=0;
 	static unsigned long lastTime = 0;
 	const unsigned long interval = 500;
 	unsigned long tm_now = millis();
 	long elapsed = tm_now - lastTime;
 
+	if( trackerState == 3 )
+	{
+		// if in low battery condition
+		// sleep again before measuring vbatt again.
+		systemSleep(58);
+		loops = 0;
+		// at this point eleapsed time will be > 500 mSec.
+	}
+	
 	if( elapsed > 500 )
 	{
 	
@@ -263,6 +280,33 @@ void loop() {
 
 		// update battery voltage reading.
 		float measuredvbat = getBatteryVoltage();
+
+		// check if vbatt too low
+		if( measuredvbat < LOW_vBATT && !usb_connected )
+		{
+			// entered low battery state.
+			trackerState = 3;
+		}
+		if( trackerState == 3 && measuredvbat > OK_vBATT)
+		{
+			// battery recovered, exit low battery state
+			trackerState = 2;
+			slept = 1;
+		}else if( trackerState == 3 )
+		{
+			// low battery and not above upper limit
+			// hysterisis to prevent toggling low batt state on/off.
+			// go into long sleep
+			systemSleep(58);
+			lastTime = millis();
+			loops = 0;
+			return;	// exit loop.			
+		}
+		// report low battery (get here is on USB charging)
+		if( measuredvbat < LOW_vBATT && (loops % 8) == 0 )
+		{
+			Serial.print(" Low Battery!! ");
+		}
 
 		// get GPS data and build packet.
 		fix = getGPS( gpsPacket_ );
@@ -293,6 +337,7 @@ void loop() {
 			slept = 1;
 			trackerState = 2;
 			loops = 0;
+			// set earliest next time to sleep. Need to allow GPS to get good fix.
 			sleepTime = millis() + (1000 * TRACKER_WAKE_SECONDS);
 		}
 		if( slept )

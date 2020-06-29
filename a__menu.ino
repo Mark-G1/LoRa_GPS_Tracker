@@ -129,7 +129,7 @@ void menuCommand()
 			case -9999:
 				Serial.println(" - invalid command");
 				cmdState = menu;
-				delay(1200);		// delay longer to allow programmer to take control.
+				delay(1800);		// delay longer to allow programmer to take control.
 				break;
 		}
 		delay(pauseTime);  // allow user to read any message
