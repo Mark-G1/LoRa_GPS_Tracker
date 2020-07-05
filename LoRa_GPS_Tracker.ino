@@ -19,13 +19,44 @@
  * RTC wake up: https://www.arduino.cc/en/Reference/RTC
  * example: https://www.arduino.cc/en/Tutorial/SleepRTCAlarm
  * Sleep mode example: https://github.com/patrickmoffitt/Adafruit-Feather-M0-Motion-Camera
- * Add Library RTCZero (no need to add URL, just search inlibrary manager)
+ * Add Library RTCZero (no need to add URL, just search in library manager)
  * Code for it: https://github.com/arduino-libraries/RTCZero/blob/master/src/RTCZero.cpp
  *
  *
  * Low power logging example:
  * https://github.com/cavemoa/Feather-M0-Adalogger
  *
+ * IoT data node-red dashboard:
+ * MQTT test tool App for Chrome: MQTT Lens : https://chrome.google.com/webstore/detail/mqttlens/hemojaaeigabkbcookmlgmdigohjobjm
+ * https://oneguyoneblog.com/2017/06/20/mosquitto-mqtt-node-red-raspberry-pi/
+ * https://flows.nodered.org/node/node-red-dashboard
+ * https://randomnerdtutorials.com/getting-started-with-node-red-dashboard/
+ *
+ * Android dashboard: https://play.google.com/store/apps/details?id=com.thn.iotmqttdashboard
+ *
+ * Node-Red world map dashboard:
+ * 	https://flows.nodered.org/node/node-red-contrib-web-worldmap
+ * 	Example using it: https://primalcortex.wordpress.com/2017/04/06/using-node-red-worldmap/
+ *
+ * 	Google API examples:
+ * 		https://flows.nodered.org/flow/452bba111f323218d3e17ee6eaa93e9c
+ * 		https://github.com/phyunsj/node-red-custom-dashboard-map-page
+ *
+ * MQTT client on ESP32 to Rpi:
+ * 	https://randomnerdtutorials.com/esp32-mqtt-publish-subscribe-arduino-ide/
+ * To AWS:
+ * 	https://www.valvers.com/open-software/arduino/esp32-mqtt-tutorial/
+ * https://learn.sparkfun.com/tutorials/introduction-to-mqtt/all
+ * Using Android mqtt dashboard example:
+ * 	http://www.iotsharing.com/2017/05/how-to-use-mqtt-to-build-smart-home-arduino-esp32.html
+ *
+ * MQTT libraies:
+ * 	Aurduinomqtt by Kovelenta  (in IDE list)
+ * 	Or this very popular one: https://github.com/knolleary/pubsubclient/archive/master.zip
+ *
+ *
+ *  Our LoRa packet format:
+ *  $,<GPS Fix 0:1>,<Lat Deg>,<Long Deg>,<Vector speed>,<Vector angle>,<Altitude>,<Sat Count>,<V Battery>,<packet count>
  *
  * 2020-05-28  Basic low power sleep and wake up is working.
  * The thing that was causing trouble was the while(!Serial) loop after a wakeup that will hang the code until USB connected or RTS toggled.
@@ -34,9 +65,8 @@
 
 #define myVERSION "1.06"
 
-// how often to get GPS data and send via LoRa
+// how often to get GPS data and send via LoRa (Used in b__ublox_pgs.ino)
 #define GPS_UPDATE_RATE (5000)
-
 
 // set to 1 to enable putting the LoRa radio in sleep mode after Tx.
 #define ENABLE_LORA_SLEEP   1
@@ -55,7 +85,9 @@
 
 // ------------------------------------------
 //  Battery voltage thresholds
-// LoRa transmit OK down to 3.55v  but battery does strange thing: goes down to 3.55 then after a minut start rising to 3.65 where Tx stops.
+// LoRa transmit OK down to 3.55v
+//	battery measurment drops down to 3.55 then start rising to 3.65 where Tx stops.
+// The rise is due to 3.3v reg output dropping below 3.3v as input voltage drops, Reg output is Vref, thus as Vref drops ADC result rises.
 #define LOW_vBATT	(3.57)	// vbat below this disables tracker (if no USB connection)
 #define OK_vBATT	(3.72)	// vbatt must go above this to re-enable.
 
@@ -88,8 +120,8 @@ RTCZero rtc;  // declare the Real Time Clock object
 /* Change these values to set the current initial time */
 const byte seconds = 0;
 #endif	// #if (ENABLE_MCU_SLEEP == 1)
-
 // ---	END	RTC for wake up ---
+
 #endif	/* for feather m0  */
 // ------------------------------------------
 #define TRACKER_SLEEP_SECONDS	(12)	// how long to sleep between GPS reads and LoRa Tx.
@@ -131,7 +163,7 @@ void setup() {
 	ledSetup();
 
 	loraSetupPins();
-	
+
 	ledCode(2); // blink out info code
 
 	// Serial is our command menu port
@@ -149,7 +181,7 @@ void setup() {
 		}
 		usbcnt--;
 	} while (!Serial && usbcnt);
-	
+
 	if( usb_connected )
 	{
 		// finish waiting to give user time to open serial monitor tool
@@ -178,7 +210,7 @@ void setup() {
 		ledCode(5); // blink out info code
 	}else
 	{
-#if (ENABLE_MCU_SLEEP == 0 && ENABLE_DEBUG_INFO == 1)
+#if(ENABLE_DEBUG_INFO == 1)
 		Serial.println("GPS Object init OK");
 #endif
 	}
@@ -203,7 +235,7 @@ void setup() {
 		while (1)
 			ledCode(3); // blink out error code
 	}
-#if (ENABLE_MCU_SLEEP == 0 && ENABLE_DEBUG_INFO == 1)
+#if( ENABLE_DEBUG_INFO == 1)
 	Serial.println("LoRa radio init OK!");
 #endif
 	// Defaults after init are 434.0MHz, modulation GFSK_Rb250Fd250, +13dbM
@@ -213,12 +245,12 @@ void setup() {
 			ledCode(4); // blink out error code
 	}
 
-#if (ENABLE_MCU_SLEEP == 0 && ENABLE_DEBUG_INFO == 1)
+#if( ENABLE_DEBUG_INFO == 1)
 	Serial.print("Set Freq to: "); Serial.println(getLoraFrequency());
 #endif
 
 
-#if (ENABLE_LORA_INFO == 1)
+#if(ENABLE_LORA_INFO == 1)
 	// dump registers
 	printLoraRegisters();
 	ledCode(2); // blink out info code
@@ -226,13 +258,14 @@ void setup() {
 #endif
 
 // setup RTC to wake up device periodically
-#if (ENABLE_MCU_SLEEP == 1)
+#if(ENABLE_MCU_SLEEP == 1)
 	rtc.begin();
 	rtc.attachInterrupt(alarmMatch);
-#if (0)
+#if(0)
+	// test RTC sleep - wake
 	Serial.print("Setup: MCU Sleep Seconds: ");
-	Serial.println(10);
-	AlarmTimeSeconds = rtc.getSeconds()+10; // Adds 10 seconds to alarm time
+	Serial.println(TRACKER_SLEEP_SECONDS);
+	AlarmTimeSeconds = rtc.getSeconds()+TRACKER_SLEEP_SECONDS; // Adds 10 seconds to alarm time
 	AlarmTimeSeconds = AlarmTimeSeconds % 60; // checks for roll over 60 seconds and corrects
 
 	rtc.setAlarmSeconds(AlarmTime); // Wakes at next alarm time
@@ -248,6 +281,8 @@ void setup() {
 int loops = 0;
 volatile int trackerState = 0;	// 0 waiting for fix, 1 = fix and can sleep, 2 = fix and wake time, 3 = vbatt under volt
 volatile uint32_t sleepTime = 0;
+float last_vbatt = 0;
+
 // -------------------------------------------------------------------
 // the loop function runs over and over again forever
 // make loop more modular: https://arduino.stackexchange.com/a/37748
@@ -270,17 +305,22 @@ void loop() {
 		loops = 0;
 		// at this point eleapsed time will be > 500 mSec.
 	}
-	
+
 	if( elapsed > 500 )
 	{
-	
+
 		// do any menu actions
 		if(usb_connected)
 			menuCommand();
 
 		// update battery voltage reading.
 		float measuredvbat = getBatteryVoltage();
-
+		if( (last_vbatt - measuredvbat) > 0.10 )
+		{
+			// usb was disconnected.
+			usb_connected = 0;
+		}
+		last_vbatt = measuredvbat;
 		// check if vbatt too low
 		if( measuredvbat < LOW_vBATT && !usb_connected )
 		{
@@ -300,7 +340,7 @@ void loop() {
 			systemSleep(58);
 			lastTime = millis();
 			loops = 0;
-			return;	// exit loop.			
+			return;	// exit loop.
 		}
 		// report low battery (get here is on USB charging)
 		if( measuredvbat < LOW_vBATT && (loops % 8) == 0 )
@@ -315,7 +355,7 @@ void loop() {
 			trackerState = 1;
 			loops = 0;
 		}
-	
+
 		if( trackerState == 1 || (fix && (loops % 4) == 0) || (loops % 16) == 0 )
 		{
 			// transmit any GPS info
@@ -332,7 +372,7 @@ void loop() {
 #endif
 			// set update rate of GPS to 10 seconds
 			gpsSetUpdateRate(TRACKER_SLEEP_SECONDS);
-	
+
 			systemSleep( TRACKER_SLEEP_SECONDS );
 			slept = 1;
 			trackerState = 2;
@@ -379,7 +419,7 @@ void loop() {
 		lastTime = millis();
 
 	}// end of if 500 mSec elapsed time.
-	
+
 	ledControl();
 }
 
