@@ -300,7 +300,7 @@ void gpsWakeup()
  *  See section 31.2.5
  *
  *  Our LoRa packet format:
- *  $,<GPS Fix 0:1>,<Lat Deg>,<Long Deg>,<Vector speed>,<Vector angle>,<Altitude>,<Sat Count>,<V Battery>,<packet count>
+ *  $<GPS Fix 0:1>,<Lat Deg>,<Long Deg>,<Vector speed>,<Vector angle>,<Altitude>,<Sat Count>,<V Battery>,<packet count>
  ********************************************************************************** */
 int getGPS(char* gpsPacket_)
 {

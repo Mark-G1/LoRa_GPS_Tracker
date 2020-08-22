@@ -6,6 +6,7 @@
  * It sends LoRa data to the project LoRa_GPS_Receiver code.
  * Use: to track our cat.
  *
+ * IDE: Arduino 1.8.9
  * IDE Board setting:
  * 		Adafruit SAMD --> "Adafruit M0 Feather" LoRa board
  * or ESP32 Arduino --> "Heltec Wifi Lora 32" LoRa + OLED board (see board target macros below)
@@ -28,9 +29,9 @@
  *
  * IoT data node-red dashboard:
  * MQTT test tool App for Chrome: MQTT Lens : https://chrome.google.com/webstore/detail/mqttlens/hemojaaeigabkbcookmlgmdigohjobjm
- * https://oneguyoneblog.com/2017/06/20/mosquitto-mqtt-node-red-raspberry-pi/
- * https://flows.nodered.org/node/node-red-dashboard
- * https://randomnerdtutorials.com/getting-started-with-node-red-dashboard/
+ *  https://oneguyoneblog.com/2017/06/20/mosquitto-mqtt-node-red-raspberry-pi/
+ *  https://flows.nodered.org/node/node-red-dashboard
+ *  https://randomnerdtutorials.com/getting-started-with-node-red-dashboard/
  *
  * Android dashboard: https://play.google.com/store/apps/details?id=com.thn.iotmqttdashboard
  *
@@ -56,7 +57,7 @@
  *
  *
  *  Our LoRa packet format:
- *  $,<GPS Fix 0:1>,<Lat Deg>,<Long Deg>,<Vector speed>,<Vector angle>,<Altitude>,<Sat Count>,<V Battery>,<packet count>
+ *  $<GPS Fix 0:1>,<Lat Deg>,<Long Deg>,<Vector speed>,<Vector angle>,<Altitude>,<Sat Count>,<V Battery>,<packet count>
  *
  * 2020-05-28  Basic low power sleep and wake up is working.
  * The thing that was causing trouble was the while(!Serial) loop after a wakeup that will hang the code until USB connected or RTS toggled.
@@ -86,8 +87,8 @@
 // ------------------------------------------
 //  Battery voltage thresholds
 // LoRa transmit OK down to 3.55v
-//	battery measurment drops down to 3.55 then start rising to 3.65 where Tx stops.
-// The rise is due to 3.3v reg output dropping below 3.3v as input voltage drops, Reg output is Vref, thus as Vref drops ADC result rises.
+//	battery measurement drops down to 3.55 then start rising to 3.65 where Tx stops.
+// The rise is due to 3.3v regulator output dropping below 3.3v as input voltage drops, Regulator output is Vref, thus as Vref drops ADC result rises.
 #define LOW_vBATT	(3.57)	// vbat below this disables tracker (if no USB connection)
 #define OK_vBATT	(3.72)	// vbatt must go above this to re-enable.
 
@@ -270,7 +271,7 @@ void setup() {
 
 	rtc.setAlarmSeconds(AlarmTime); // Wakes at next alarm time
 	rtc.enableAlarm(rtc.MATCH_SS); // Match seconds only
-	// goto sleep
+	// go to sleep
 	rtc.standbyMode();
 #endif
 #endif
@@ -303,7 +304,7 @@ void loop() {
 		// sleep again before measuring vbatt again.
 		systemSleep(58);
 		loops = 0;
-		// at this point eleapsed time will be > 500 mSec.
+		// at this point elapsed time will be > 500 mSec.
 	}
 
 	if( elapsed > 500 )
@@ -335,7 +336,7 @@ void loop() {
 		}else if( trackerState == 3 )
 		{
 			// low battery and not above upper limit
-			// hysterisis to prevent toggling low batt state on/off.
+			// hysteresis to prevent toggling low batt state on/off.
 			// go into long sleep
 			systemSleep(58);
 			lastTime = millis();
@@ -492,7 +493,7 @@ void mcuSleep(uint16_t sleepSeconds)
 
 		rtc.standbyMode();
 
-/*		USBDevice.attach();   // Re-attach the USB ony if it was connected at start up
+/*		USBDevice.attach();   // Re-attach the USB only if it was connected at start up
 
 		if(usb_connected)
 		{
