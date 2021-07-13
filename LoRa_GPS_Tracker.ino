@@ -64,7 +64,7 @@
  * 2020-06-27	add debug enable and menu enable if USB connected during setup.
  */
 
-#define myVERSION "1.06"
+#define myVERSION "1.10"
 
 // how often to get GPS data and send via LoRa (Used in b__ublox_pgs.ino)
 #define GPS_UPDATE_RATE (5000)
@@ -129,6 +129,14 @@ const byte seconds = 0;
 #define TRACKER_WAKE_SECONDS	(9)		// how long to wake and wait before sleep after a fix.
 
 #include <stdlib.h>
+
+// include watchdog code
+#include <Adafruit_SleepyDog.h>
+
+
+// define watchdog timeout in mSec. 
+// Max time supportted by library is 16 seconds. Library rounds requested time DOWN, so make sure greater than 160000.
+#define WDT_TIMEOUT ((16ul)*1001ul)
 
 // include for dtostrf()
 //#include <stdlib_noniso.h>	// https://github.com/espressif/arduino-esp32/blob/master/cores/esp32/stdlib_noniso.h
@@ -277,6 +285,10 @@ void setup() {
 #endif
 	Serial.println("Starting loop() " myVERSION);
 	delay(500);
+
+	// setup watchdog
+	Watchdog.enable(WDT_TIMEOUT);
+
 }
 
 int loops = 0;
@@ -289,6 +301,7 @@ float last_vbatt = 0;
 // make loop more modular: https://arduino.stackexchange.com/a/37748
 // -------------------------------------------------------------------
 void loop() {
+	Watchdog.reset();		// reset watchdog
 	#if (ENABLE_DEBUG_INFO == 1)
 //  Serial.println("in loop()");
 	#endif
@@ -301,6 +314,7 @@ void loop() {
 	if( trackerState == 3 )
 	{
 		// if in low battery condition
+		Watchdog.disable();
 		// sleep again before measuring vbatt again.
 		systemSleep(58);
 		loops = 0;
@@ -337,13 +351,14 @@ void loop() {
 		{
 			// low battery and not above upper limit
 			// hysteresis to prevent toggling low batt state on/off.
+			Watchdog.disable();
 			// go into long sleep
 			systemSleep(58);
 			lastTime = millis();
 			loops = 0;
 			return;	// exit loop.
 		}
-		// report low battery (get here is on USB charging)
+		// report low battery (get here if on USB charging)
 		if( measuredvbat < LOW_vBATT && (loops % 8) == 0 )
 		{
 			Serial.print(" Low Battery!! ");
@@ -368,6 +383,8 @@ void loop() {
 		// If GPS has fix, then go to sleep for a while before sending next fix.
 		if(trackerState == 1 && get_gpsMcuSleep() )
 		{
+			// reset watchdog before sleeping
+			Watchdog.reset();
 #if (ENABLE_DEBUG_INFO == 1)
 			Serial.println("Have GPS fix, going to sleep");
 #endif
@@ -381,6 +398,8 @@ void loop() {
 			// set earliest next time to sleep. Need to allow GPS to get good fix.
 			sleepTime = millis() + (1000 * TRACKER_WAKE_SECONDS);
 		}
+		// reset watchdog before sleeping
+		Watchdog.reset();
 		if( slept )
 		{
 			// wakeUp GPS
