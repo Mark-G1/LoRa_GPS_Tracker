@@ -1,3 +1,4 @@
+
 /*
  * Lora GPS Tracker
  * Lucas Giebler
@@ -8,13 +9,15 @@
  *
  * IDE: Arduino 1.8.9
  * IDE Board setting:
- * 		Adafruit SAMD --> "Adafruit M0 Feather" LoRa board
- * or ESP32 Arduino --> "Heltec Wifi Lora 32" LoRa + OLED board (see board target macros below)
+ * 			 Adafruit SAMD --> "Adafruit M0 Feather" LoRa board
+ * or        ESP32 Arduino --> "Heltec Wifi Lora 32" LoRa + OLED board (see board target macros below)
+ * or Heltec ESP32 Arduino --> "WiFi LoRa 32"  (this build target selection is untested yet)
  *
- *
+ * 			Adafruit SAMD BSP: https://www.adafruit.com/package_adafruit_index.json
+ * 
  * Power management on feather: https://learn.adafruit.com/adafruit-feather-m0-adalogger/power-management
  * and: https://learn.adafruit.com/adafruit-feather-m0-radio-with-lora-radio-module/power-management
- * _mg_ Never use while !Serial after a RTC sleep, it will hang the code.
+ * _mg_ Never use while( !Serial ) after a RTC sleep, it will hang the code.
  * After a Serial.end() followed by begin() Seems like Serial code wants to see a RTS or DTR toggle before returning True.
  *
  * RTC wake up: https://www.arduino.cc/en/Reference/RTC
@@ -42,7 +45,10 @@
  * 	Google API examples:
  * 		https://flows.nodered.org/flow/452bba111f323218d3e17ee6eaa93e9c
  * 		https://github.com/phyunsj/node-red-custom-dashboard-map-page
- *
+ * 
+ *	Worldmap URL:
+ *		http://<Your_RPi_IP_address>:1880/worldmap
+ * 
  * MQTT client on ESP32 to Rpi:
  * 	https://randomnerdtutorials.com/esp32-mqtt-publish-subscribe-arduino-ide/
  * To AWS:

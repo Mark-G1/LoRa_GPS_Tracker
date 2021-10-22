@@ -15,7 +15,8 @@
  * And SparkFun Ublox Library: https://github.com/sparkfun/SparkFun_Ublox_Arduino_Library/blob/master/src/SparkFun_Ublox_Arduino_Library.cpp
  *   in Ardiono library: Sparkfun Ublox Arduino Library
  * And GPS Flora / FeatherWing example: GPS_HardwareSerial_Parsing
- *
+ * And another ublox lib to look into: https://githubhelp.com/AlessioMorale/ublox
+ * 
  *  Our BN-180 device info:
 	$GNTXT,01,01,02,u-blox AG - www.u-blox.com*4E
 	$GNTXT,01,01,02,HW UBX-M8030 00080000*60
@@ -359,6 +360,7 @@ int getGPS(char* gpsPacket_)
 
 		// copy GPS data to LoRa gpsPacket_ if delay time elapsed.
 		lastTime = nowTk;
+		// temporary working buffer
 		char buff[20];
 		// LoRa format is:
 		// $<fix>,<lat>,<lon>,<speed>,<dir>,<altitude>,<#sats>,<batteryV>,<pkt-count>
