@@ -204,6 +204,9 @@ void setup() {
 		usbcnt = 0;
 	}
 
+	// identify the sketch file in case we forget which one the binary was from.
+	Serial.println("Sketch: \n" __FILE__ "\n");
+
 #if (0)
 	// test our double to string converter
 	char testBuff[16];
