@@ -13,8 +13,11 @@
  * or        ESP32 Arduino --> "Heltec Wifi Lora 32" LoRa + OLED board (see board target macros below)
  * or Heltec ESP32 Arduino --> "WiFi LoRa 32"  (this build target selection is untested yet)
  *
- * 			Adafruit SAMD BSP: https://www.adafruit.com/package_adafruit_index.json
- * 
+ * 			Adafruit SAMD BSP: https://adafruit.github.io/arduino-board-index/package_adafruit_index.json
+ * 				v1.5.1
+ *
+ * Notes:
+ *
  * Power management on feather: https://learn.adafruit.com/adafruit-feather-m0-adalogger/power-management
  * and: https://learn.adafruit.com/adafruit-feather-m0-radio-with-lora-radio-module/power-management
  * _mg_ Never use while( !Serial ) after a RTC sleep, it will hang the code.
@@ -45,10 +48,10 @@
  * 	Google API examples:
  * 		https://flows.nodered.org/flow/452bba111f323218d3e17ee6eaa93e9c
  * 		https://github.com/phyunsj/node-red-custom-dashboard-map-page
- * 
+ *
  *	Worldmap URL:
  *		http://<Your_RPi_IP_address>:1880/worldmap
- * 
+ *
  * MQTT client on ESP32 to Rpi:
  * 	https://randomnerdtutorials.com/esp32-mqtt-publish-subscribe-arduino-ide/
  * To AWS:
@@ -65,8 +68,10 @@
  *  Our LoRa packet format:
  *  $<GPS Fix 0:1>,<Lat Deg>,<Long Deg>,<Vector speed>,<Vector angle>,<Altitude>,<Sat Count>,<V Battery>,<packet count>
  *
+ * Change log:
+ *
  * 2020-05-28  Basic low power sleep and wake up is working.
- * The thing that was causing trouble was the while(!Serial) loop after a wakeup that will hang the code until USB connected or RTS toggled.
+ * The thing that was causing trouble was the while(!Serial) loop after a wakeup that will hang the code until USB is connected or RTS toggled.
  * 2020-06-27	add debug enable and menu enable if USB connected during setup.
  */
 
@@ -140,7 +145,7 @@ const byte seconds = 0;
 #include <Adafruit_SleepyDog.h>
 
 
-// define watchdog timeout in mSec. 
+// define watchdog timeout in mSec.
 // Max time supportted by library is 16 seconds. Library rounds requested time DOWN, so make sure greater than 160000.
 #define WDT_TIMEOUT ((16ul)*1001ul)
 
