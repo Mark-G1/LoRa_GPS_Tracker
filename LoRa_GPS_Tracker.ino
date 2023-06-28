@@ -52,6 +52,9 @@
  *	Worldmap URL:
  *		http://<Your_RPi_IP_address>:1880/worldmap
  *
+ *	Gauge and Trend page URL:
+ *		http://<Your_RPi_IP_address>:1880/ui
+ *
  * MQTT client on ESP32 to Rpi:
  * 	https://randomnerdtutorials.com/esp32-mqtt-publish-subscribe-arduino-ide/
  * To AWS:
@@ -77,7 +80,7 @@
 
 #define myVERSION "1.10"
 
-// how often to get GPS data and send via LoRa (Used in b__ublox_pgs.ino)
+// how often to get GPS data and send via LoRa (Used in b__ublox_pgs.ino). Milliseconds.
 #define GPS_UPDATE_RATE (5000)
 
 // set to 1 to enable putting the LoRa radio in sleep mode after Tx.
